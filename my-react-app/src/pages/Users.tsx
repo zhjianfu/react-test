@@ -4,8 +4,8 @@ import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
 import BaseTable from '../components/base/BaseTable';
-import ActionButtons from '../components/base/ActionButtons';
-import UserSearchForm from '../components/user/UserSearchForm';
+import ActionButtonGroup from '../components/base/ActionButtonGroup';
+import AdvancedSearchForm from '../components/base/AdvancedSearchForm';
 import UserForm from '../components/user/UserForm';
 import { UserService } from '../services/userService';
 import { UserType } from '../types/user';
@@ -163,6 +163,22 @@ const Users = () => {
       message.error('搜索失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 批量删除
+  const handleBatchDelete = async () => {
+    if (selectedRows.length === 0) {
+      message.warning('请选择要删除的用户');
+      return;
+    }
+    try {
+      await Promise.all(selectedRows.map(user => UserService.deleteUser(user.id)));
+      setUserData(prev => prev.filter(item => !selectedRows.find(row => row.id === item.id)));
+      setSelectedRows([]);
+      message.success('批量删除成功');
+    } catch (error) {
+      message.error('批量删除失败');
     }
   };
 
@@ -366,45 +382,51 @@ const Users = () => {
     <div style={{ height: 'calc(100vh - 112px)', display: 'flex', flexDirection: 'column' }}>
       {/* 搜索区域 */}
       <Card style={{ marginBottom: 16, flex: 'none' }}>
-        <UserSearchForm 
+        <AdvancedSearchForm 
           onSearch={handleSearch}
           onReset={fetchUsers}
+          loading={loading}
         />
       </Card>
 
-      {/* 按钮栏 */}
-      <Card style={{ marginBottom: 16, flex: 'none' }}>
-        <ActionButtons
-          onAdd={handleAdd}
-          onRefresh={fetchUsers}
+      {/* 操作按钮区域 */}
+      <Card style={{ marginBottom: 16 }}>
+        <ActionButtonGroup
+          onAdd={() => setIsModalOpen(true)}
+          onImport={() => {/* TODO */}}
+          onExport={() => {/* TODO */}}
+          onBatchDelete={handleBatchDelete}
+          onBatchApprove={() => {/* TODO */}}
+          onBatchDisable={() => {/* TODO */}}
+          onBatchEnable={() => {/* TODO */}}
+          onResetPassword={() => {/* TODO */}}
+          selectedRows={selectedRows}
+          loading={loading}
         />
       </Card>
 
       {/* 表格区域 */}
       <Card style={{ flex: 1, overflow: 'hidden' }}>
-        <div style={{ marginBottom: 16 }}>
-          <Button type="primary" onClick={handleAdd}>
-            新增用户
-          </Button>
-        </div>
         <Table<UserType>
+          rowSelection={rowSelection}
           columns={columns}
           dataSource={userData}
-          rowSelection={rowSelection}
-          pagination={false}
-          scroll={{ x: 1200, y: 'calc(100% - 55px)' }}
           rowKey="id"
-          size="middle"
+          loading={loading}
+          scroll={{ x: 1200, y: 'calc(100vh - 400px)' }}
         />
       </Card>
 
-      {/* 新增/编辑用户模态框 */}
+      {/* 用户表单弹窗 */}
       <Modal
-        title={editingKey === null ? "新增用户" : "编辑用户"}
+        title={editingKey ? "编辑用户" : "新增用户"}
         open={isModalOpen}
         onOk={handleModalOk}
-        onCancel={() => setIsModalOpen(false)}
-        destroyOnClose
+        onCancel={() => {
+          setIsModalOpen(false);
+          setEditingKey(null);
+          modalForm.resetFields();
+        }}
       >
         <UserForm form={modalForm} />
       </Modal>
