@@ -1,7 +1,7 @@
 export interface UserType {
-  key: string;
+  id: string;
   name: string;
-  age: number;
+  age: number | string;
   email: string;
   role: string;
   status: string;
