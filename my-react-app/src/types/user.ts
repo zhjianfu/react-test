@@ -1,16 +1,14 @@
+export type RoleType = 'admin' | 'editor' | 'user';
+export type StatusType = 'active' | 'inactive';
+
 export interface UserType {
   id: string;
   name: string;
-  age: number | string;
-  email: string;
-  role: string;
-  status: string;
-}
-
-export interface UserFormData {
-  name: string;
   age: number;
   email: string;
-  role: string;
-  status: string;
+  role: RoleType;
+  roleUser?: string;
+  status: StatusType;
 }
+
+export type UserFormData = Omit<UserType, 'id' | 'roleUser'>;

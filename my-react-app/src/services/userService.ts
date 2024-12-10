@@ -3,15 +3,20 @@ import { UserType, UserFormData } from '../types/user';
 // 模拟API调用延迟
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// 角色和状态的映射
+const ROLES = ['admin', 'editor', 'user'] as const;
+const STATUS = ['active', 'inactive'] as const;
+
 export class UserService {
   private static generateMockData(length: number): UserType[] {
     return Array.from({ length }, (_, i) => ({
-      key: i.toString(),
+      id: i.toString(),
       name: `用户${i + 1}`,
       age: 20 + Math.floor(Math.random() * 40),
       email: `user${i + 1}@example.com`,
-      role: ['管理员', '编辑', '普通用户'][Math.floor(Math.random() * 3)],
-      status: ['活跃', '禁用', '待验证'][Math.floor(Math.random() * 3)],
+      role: ROLES[Math.floor(Math.random() * ROLES.length)],
+      roleUser: `user_${Math.floor(Math.random() * 5)}`,
+      status: STATUS[Math.floor(Math.random() * STATUS.length)],
     }));
   }
 
@@ -33,23 +38,33 @@ export class UserService {
     });
   }
 
-  static async addUser(userData: UserFormData): Promise<UserType> {
+  static async addUser(userData: Partial<UserType>): Promise<UserType> {
     await delay(500);
     return {
-      key: Date.now().toString(),
+      id: Date.now().toString(),
+      name: '',
+      age: 0,
+      email: '',
+      role: 'user',
+      status: 'active',
       ...userData,
     };
   }
 
-  static async updateUser(key: string, userData: UserFormData): Promise<UserType> {
+  static async updateUser(id: string, userData: Partial<UserType>): Promise<UserType> {
     await delay(500);
     return {
-      key,
+      id,
+      name: '',
+      age: 0,
+      email: '',
+      role: 'user',
+      status: 'active',
       ...userData,
     };
   }
 
-  static async deleteUser(key: string): Promise<void> {
+  static async deleteUser(id: string): Promise<void> {
     await delay(500);
   }
 }
