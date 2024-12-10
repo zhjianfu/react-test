@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Button, Space, Form, Tag, message, Modal, Popconfirm, Table, Input, Select } from 'antd';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -9,6 +9,7 @@ import UserSearchForm from '../components/user/UserSearchForm';
 import UserForm from '../components/user/UserForm';
 import { UserService } from '../services/userService';
 import { UserType } from '../types/user';
+import { RoleService } from '../services/roleService';
 
 const Users = () => {
   const [loading, setLoading] = useState(false);
@@ -17,7 +18,10 @@ const Users = () => {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [userData, setUserData] = useState<UserType[]>([]);
   const [selectedRows, setSelectedRows] = useState<UserType[]>([]);
-  
+  const [roles, setRoles] = useState<any[]>([]);
+  const [roleUsers, setRoleUsers] = useState<Record<string, any[]>>({});
+  const [selectedRole, setSelectedRole] = useState<string>('');
+
   // 示例数据
   const demoData = [
     {
@@ -26,6 +30,7 @@ const Users = () => {
       age: 28,
       email: 'zhangsan@example.com',
       role: 'admin',
+      roleUser: '1', // 对应 admin 角色下的张三
       status: 'active'
     },
     {
@@ -33,7 +38,8 @@ const Users = () => {
       name: '李四',
       age: 32,
       email: 'lisi@example.com',
-      role: 'user',
+      role: 'editor',
+      roleUser: '3', // 对应 editor 角色下的王五
       status: 'inactive'
     },
     {
@@ -41,133 +47,67 @@ const Users = () => {
       name: '王五',
       age: 25,
       email: 'wangwu@example.com',
-      role: 'editor',
+      role: 'user',
+      roleUser: '5', // 对应 user 角色下的钱七
       status: 'active'
     }
   ];
 
-  // 表格列配置
-  const columns: ColumnsType<any> = [
-    {
-      title: '姓名',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text, record) => {
-        const isEditing = record.id === editingKey;
-        return isEditing ? (
-          <Input defaultValue={text} onChange={e => handleFieldChange(record.id, 'name', e.target.value)} />
-        ) : (
-          text
-        );
+  // 获取角色列表
+  const fetchRoles = async () => {
+    try {
+      const data = await RoleService.getRoles();
+      setRoles(data);
+      // 初始化时加载所有角色的用户数据
+      for (const role of data) {
+        fetchRoleUsers(role.code);
       }
-    },
-    {
-      title: '年龄',
-      dataIndex: 'age',
-      key: 'age',
-      render: (text, record) => {
-        const isEditing = record.id === editingKey;
-        return isEditing ? (
-          <Input type="number" defaultValue={text} onChange={e => handleFieldChange(record.id, 'age', e.target.value)} />
-        ) : (
-          text
-        );
-      }
-    },
-    {
-      title: '邮箱',
-      dataIndex: 'email',
-      key: 'email',
-      render: (text, record) => {
-        const isEditing = record.id === editingKey;
-        return isEditing ? (
-          <Input defaultValue={text} onChange={e => handleFieldChange(record.id, 'email', e.target.value)} />
-        ) : (
-          text
-        );
-      }
-    },
-    {
-      title: '角色',
-      dataIndex: 'role',
-      key: 'role',
-      render: (text, record) => {
-        const isEditing = record.id === editingKey;
-        return isEditing ? (
-          <Select
-            defaultValue={text}
-            style={{ width: 120 }}
-            onChange={value => handleFieldChange(record.id, 'role', value)}
-            options={[
-              { value: 'admin', label: '管理员' },
-              { value: 'user', label: '用户' },
-              { value: 'editor', label: '编辑' },
-            ]}
-          />
-        ) : (
-          text
-        );
-      }
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (text, record) => {
-        const isEditing = record.id === editingKey;
-        return isEditing ? (
-          <Select
-            defaultValue={text}
-            style={{ width: 120 }}
-            onChange={value => handleFieldChange(record.id, 'status', value)}
-            options={[
-              { value: 'active', label: '活跃' },
-              { value: 'inactive', label: '非活跃' },
-            ]}
-          />
-        ) : (
-          <Tag color={text === 'active' ? 'green' : 'red'}>
-            {text === 'active' ? '活跃' : '非活跃'}
-          </Tag>
-        );
-      }
-    },
-    {
-      title: '操作',
-      key: 'action',
-      render: (_, record) => {
-        const isEditing = record.id === editingKey;
-        return (
-          <Space>
-            {isEditing ? (
-              <>
-                <Button type="link" onClick={() => handleSave(record.id)}>保存</Button>
-                <Button type="link" onClick={() => setEditingKey(null)}>取消</Button>
-              </>
-            ) : (
-              <>
-                <Button type="link" icon={<EditOutlined />} onClick={() => setEditingKey(record.id)}>
-                  编辑
-                </Button>
-                <Popconfirm title="确定删除?" onConfirm={() => handleDelete(record.id)}>
-                  <Button type="link" danger icon={<DeleteOutlined />}>
-                    删除
-                  </Button>
-                </Popconfirm>
-              </>
-            )}
-          </Space>
-        );
-      }
+      // 在角色数据加载完成后再加载用户数据
+      setUserData(demoData);
+    } catch (error) {
+      message.error('获取角色列表失败');
     }
-  ];
+  };
+
+  // 获取角色用户
+  const fetchRoleUsers = async (roleCode: string) => {
+    try {
+      const users = await RoleService.getRoleUsers(roleCode);
+      setRoleUsers(prev => ({
+        ...prev,
+        [roleCode]: users
+      }));
+    } catch (error) {
+      message.error('获取角色用户失败');
+    }
+  };
+
+  // 初始化加载角色数据
+  useEffect(() => {
+    fetchRoles();
+  }, []);
+
+  // 监听角色变化，加载对应用户
+  useEffect(() => {
+    if (selectedRole && !roleUsers[selectedRole]) {
+      fetchRoleUsers(selectedRole);
+    }
+  }, [selectedRole]);
 
   // 处理字段变更
   const handleFieldChange = (id: string, field: string, value: any) => {
     setUserData(prev => 
-      prev.map(item => 
-        item.id === id ? { ...item, [field]: value } : item
-      )
+      prev.map(item => {
+        if (item.id === id) {
+          // 如果改变的是角色，清空roleUser
+          if (field === 'role') {
+            setSelectedRole(value);
+            return { ...item, [field]: value, roleUser: undefined };
+          }
+          return { ...item, [field]: value };
+        }
+        return item;
+      })
     );
   };
 
@@ -198,11 +138,6 @@ const Users = () => {
       setSelectedRows(selectedRows);
     }
   };
-
-  // 组件挂载时加载示例数据
-  useState(() => {
-    setUserData(demoData);
-  });
 
   // 获取用户列表
   const fetchUsers = async () => {
@@ -286,66 +221,145 @@ const Users = () => {
     }
   };
 
-  // 表格列定义
-  const tableColumns: ColumnsType<UserType> = [
+  // 表格列配置
+  const columns: ColumnsType<any> = [
     {
-      title: '用户名',
+      title: '姓名',
       dataIndex: 'name',
       key: 'name',
+      width: '15%',
+      render: (text, record) => {
+        const isEditing = record.id === editingKey;
+        return isEditing ? (
+          <Input defaultValue={text} onChange={e => handleFieldChange(record.id, 'name', e.target.value)} />
+        ) : (
+          text
+        );
+      }
     },
     {
       title: '年龄',
       dataIndex: 'age',
       key: 'age',
+      width: '10%',
+      render: (text, record) => {
+        const isEditing = record.id === editingKey;
+        return isEditing ? (
+          <Input type="number" defaultValue={text} onChange={e => handleFieldChange(record.id, 'age', e.target.value)} />
+        ) : (
+          text
+        );
+      }
     },
     {
       title: '邮箱',
       dataIndex: 'email',
       key: 'email',
+      width: '25%',
+      render: (text, record) => {
+        const isEditing = record.id === editingKey;
+        return isEditing ? (
+          <Input defaultValue={text} onChange={e => handleFieldChange(record.id, 'email', e.target.value)} />
+        ) : (
+          text
+        );
+      }
     },
     {
       title: '角色',
       dataIndex: 'role',
       key: 'role',
-      render: (role: string) => {
-        const color = role === '管理员' ? 'red' : role === '编辑' ? 'blue' : 'green';
-        return <Tag color={color}>{role}</Tag>;
+      width: '15%',
+      render: (text, record) => {
+        const isEditing = record.id === editingKey;
+        const currentRole = roles.find(role => role.code === text);
+        return isEditing ? (
+          <Select
+            value={text}
+            style={{ width: '100%' }}
+            onChange={value => handleFieldChange(record.id, 'role', value)}
+            options={roles.map(role => ({
+              value: role.code,
+              label: role.name
+            }))}
+          />
+        ) : (
+          <Tag color={text === 'admin' ? 'red' : text === 'editor' ? 'blue' : 'green'}>
+            {currentRole?.name || text}
+          </Tag>
+        );
+      }
+    },
+    {
+      title: '用户',
+      dataIndex: 'roleUser',
+      key: 'roleUser',
+      width: '15%',
+      render: (text, record) => {
+        const isEditing = record.id === editingKey;
+        const currentRoleUsers = roleUsers[record.role] || [];
+        const currentUser = currentRoleUsers.find(user => user.id === text);
+        
+        return isEditing ? (
+          <Select
+            value={text}
+            style={{ width: '100%' }}
+            onChange={value => handleFieldChange(record.id, 'roleUser', value)}
+            options={currentRoleUsers.map(user => ({
+              value: user.id,
+              label: user.name
+            }))}
+          />
+        ) : (
+          currentUser?.name || text
+        );
       }
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (status: string) => {
-        const color = status === '活跃' ? 'success' : status === '禁用' ? 'error' : 'warning';
-        return <Tag color={color}>{status}</Tag>;
+      width: '10%',
+      render: (text, record) => {
+        const isEditing = record.id === editingKey;
+        return isEditing ? (
+          <Select
+            defaultValue={text}
+            style={{ width: '100%' }}
+            onChange={value => handleFieldChange(record.id, 'status', value)}
+            options={[
+              { value: 'active', label: '活跃' },
+              { value: 'inactive', label: '非活跃' },
+            ]}
+          />
+        ) : (
+          <Tag color={text === 'active' ? 'green' : 'red'}>
+            {text === 'active' ? '活跃' : '非活跃'}
+          </Tag>
+        );
       }
     },
     {
       title: '操作',
       key: 'action',
-      render: (_, record) => (
-        <Space size="middle">
-          <Button 
-            type="link" 
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          >
-            编辑
-          </Button>
-          <Popconfirm
-            title="确定删除此用户吗?"
-            onConfirm={() => handleDeleteUser(record.id)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button type="link" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
+      width: '10%',
+      fixed: 'right',
+      render: (_, record) => {
+        const isEditing = record.id === editingKey;
+        return (
+          <Space size="small">
+            {isEditing ? (
+              <Button type="link" size="small" onClick={() => handleSave(record.id)}>保存</Button>
+            ) : (
+              <Button type="link" size="small" icon={<EditOutlined />} onClick={() => setEditingKey(record.id)}>编辑</Button>
+            )}
+            <Popconfirm title="确定删除?" onConfirm={() => handleDelete(record.id)}>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+            </Popconfirm>
+          </Space>
+        );
+      }
+    }
   ];
 
   return (
@@ -378,8 +392,9 @@ const Users = () => {
           dataSource={userData}
           rowSelection={rowSelection}
           pagination={false}
-          scroll={{ y: 'calc(100% - 55px)' }}
+          scroll={{ x: 1200, y: 'calc(100% - 55px)' }}
           rowKey="id"
+          size="middle"
         />
       </Card>
 
