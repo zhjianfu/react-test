@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Table, Button, Modal, Form, Input, InputNumber, Space, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import TableSelect from '../components/TableSelect';
+import TableSelect from '../components/TableSelect/index';
 
 interface User {
   id: number;
