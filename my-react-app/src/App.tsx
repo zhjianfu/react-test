@@ -4,6 +4,7 @@ import MainLayout from './layouts/MainLayout';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Settings from './pages/Settings';
+import UserGroups from './pages/UserGroups';
 
 // 临时的占位组件
 const PlaceholderPage = ({ title }: { title: string }) => (
@@ -23,7 +24,7 @@ function App() {
           <Route path="/dashboard/analysis" element={<PlaceholderPage title="数据分析" />} />
           
           <Route path="/users/list" element={<Users />} />
-          <Route path="/users/groups" element={<PlaceholderPage title="用户分组" />} />
+          <Route path="/users/groups" element={<UserGroups />} />
           <Route path="/users/roles" element={<PlaceholderPage title="角色管理" />} />
           
           <Route path="/content/articles/list" element={<PlaceholderPage title="文章列表" />} />
