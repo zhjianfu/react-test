@@ -26,6 +26,7 @@ interface TableSelectProps<T extends object> extends Omit<SelectProps, 'options'
   dropdownHeight?: number;
   labelProps?: (keyof T)[];
   ellipsis?: boolean;
+  onSelectedRecordsChange?: (selectedRecords: T[]) => void;
 }
 
 const TableSelect = <T extends object>({
@@ -50,6 +51,7 @@ const TableSelect = <T extends object>({
   dropdownHeight,
   labelProps,
   ellipsis = true,
+  onSelectedRecordsChange,
   ...restProps
 }: TableSelectProps<T>) => {
   const [open, setOpen] = useState(false);
@@ -59,6 +61,7 @@ const TableSelect = <T extends object>({
   const [currentPageSize, setCurrentPageSize] = useState(pageSize);
   const [localDataSource, setLocalDataSource] = useState<T[]>([]);
   const [total, setTotal] = useState(0);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
 
   // 创建一个稳定的 fetch 函数
   const fetchData = useCallback(async (params: RequestParams) => {
@@ -177,6 +180,17 @@ const TableSelect = <T extends object>({
     }
   }, [open]);
 
+  // 初始化 selectedRowKeys
+  useEffect(() => {
+    if (!value) {
+      setSelectedRowKeys([]);
+    } else if (mode === 'multiple') {
+      setSelectedRowKeys(Array.isArray(value) ? value.map(String) : []);
+    } else {
+      setSelectedRowKeys([String(value)]);
+    }
+  }, [value, mode]);
+
   const getFilteredDataSource = useCallback((data: T[]) => {
     if (!searchText || !data?.length) return data;
     const searchLower = searchText.toLowerCase();
@@ -224,36 +238,58 @@ const TableSelect = <T extends object>({
     })) as DefaultOptionType[];
   }, [currentDataSource, valueKey, getOptionLabel]);
 
-  const selectedRowKeys = useMemo(() => {
-    if (!value) return [];
-    if (mode === 'multiple') {
-      return Array.isArray(value) ? value.map(String) : [];
+  // 更新选中记录的回调
+  const updateSelectedRecords = useCallback((selectedKeys: string[]) => {
+    if (onSelectedRecordsChange && currentDataSource) {
+      const selectedRecords = currentDataSource.filter(record => 
+        selectedKeys.includes(String(record[valueKey]))
+      );
+      onSelectedRecordsChange(selectedRecords);
     }
-    return [String(value)];
-  }, [value, mode]);
+  }, [currentDataSource, onSelectedRecordsChange, valueKey]);
 
+  // 处理选择变化
   const handleSelect = useCallback((selectedValue: any, selected: boolean) => {
+    let newValue: any;
+    let newSelectedKeys: string[];
+
     if (mode === 'multiple') {
       const currentValue = Array.isArray(value) ? value : [];
-      const newValue = selected
-        ? [...new Set([...currentValue, selectedValue])]
-        : currentValue.filter(v => String(v) !== String(selectedValue));
-      onChange?.(newValue);
+      if (selected) {
+        newValue = [...currentValue, selectedValue];
+        newSelectedKeys = [...selectedRowKeys, String(selectedValue)];
+      } else {
+        newValue = currentValue.filter(v => String(v) !== String(selectedValue));
+        newSelectedKeys = selectedRowKeys.filter(key => key !== String(selectedValue));
+      }
     } else {
-      onChange?.(selectedValue);
-      setOpen(false);  // 单选时自动关闭下拉框
+      newValue = selected ? selectedValue : undefined;
+      newSelectedKeys = selected ? [String(selectedValue)] : [];
     }
-  }, [mode, value, onChange]);
 
-  const handleSelectAll = useCallback((selected: boolean, changeRows: T[]) => {
-    if (!mode || mode !== 'multiple') return;
-    const changedValues = changeRows.map(row => row[valueKey]);
-    const currentValue = Array.isArray(value) ? value : [];
-    const newValue = selected
-      ? [...new Set([...currentValue, ...changedValues])]
-      : currentValue.filter(v => !changedValues.some(cv => String(cv) === String(v)));
+    setSelectedRowKeys(newSelectedKeys);
+    updateSelectedRecords(newSelectedKeys);
     onChange?.(newValue);
-  }, [mode, value, onChange, valueKey]);
+  }, [mode, onChange, selectedRowKeys, value, updateSelectedRecords]);
+
+  // 处理全选/取消全选
+  const handleSelectAll = useCallback((selected: boolean, selectedRows: T[], changeRows: T[]) => {
+    const changeKeys = changeRows.map(record => String(record[valueKey]));
+    let newSelectedKeys: string[];
+    let newValue: any[];
+
+    if (selected) {
+      newSelectedKeys = [...selectedRowKeys, ...changeKeys];
+      newValue = [...(Array.isArray(value) ? value : []), ...changeKeys];
+    } else {
+      newSelectedKeys = selectedRowKeys.filter(key => !changeKeys.includes(key));
+      newValue = (Array.isArray(value) ? value : []).filter(v => !changeKeys.includes(String(v)));
+    }
+
+    setSelectedRowKeys(newSelectedKeys);
+    updateSelectedRecords(newSelectedKeys);
+    onChange?.(newValue);
+  }, [onChange, selectedRowKeys, value, valueKey, updateSelectedRecords]);
 
   const rowSelection: TableRowSelection<T> = useMemo(() => ({
     type: mode === 'multiple' ? 'checkbox' : 'radio' as const,
@@ -262,25 +298,26 @@ const TableSelect = <T extends object>({
       handleSelect(record[valueKey], selected);
     },
     onSelectAll: (selected: boolean, selectedRows: T[], changeRows: T[]) => {
-      handleSelectAll(selected, changeRows);
+      handleSelectAll(selected, selectedRows, changeRows);
     },
     getCheckboxProps: (record: T) => ({
       value: String(record[valueKey]),
     }),
   }), [mode, selectedRowKeys, handleSelect, handleSelectAll, valueKey]);
 
-  const tableHeight = useMemo(() => {
-    if (dropdownHeight) {
-      // 预留搜索框和分页的空间
-      return dropdownHeight - (showSearch ? 56 : 0) - (showPagination ? 56 : 0);
-    }
-    return 240; // 默认高度
-  }, [dropdownHeight, showSearch, showPagination]);
+  const dropdownStyle = useMemo(() => ({
+    padding: 0,
+    minWidth: dropdownWidth || '100%',
+    width: dropdownWidth || '100%',
+    overflowY: 'visible' as const,
+    overflowX: 'hidden' as const,
+    ...restProps.dropdownStyle,
+  }), [dropdownWidth, restProps.dropdownStyle]);
 
   const renderTable = useCallback(() => (
     <div style={{ 
       padding: '8px',
-      width: dropdownWidth || '100%',
+      width: '100%',
       maxWidth: '100%',
     }}>
       {showSearch && (
@@ -312,7 +349,7 @@ const TableSelect = <T extends object>({
           style: { marginBottom: 0 }
         } : false}
         showHeader={showHeader}
-        scroll={{ y: tableHeight, x: '100%' }}
+        scroll={{ y: dropdownHeight ? dropdownHeight - 120 : 280 }}
         onRow={(record) => ({
           onClick: () => {
             const recordValue = record[valueKey];
@@ -321,16 +358,7 @@ const TableSelect = <T extends object>({
         })}
       />
     </div>
-  ), [tableHeight, rowSelection, columns, currentDataSource, loading, currentPage, currentPageSize, totalCount, showPagination, showHeader, valueKey, selectedRowKeys, dropdownWidth, searchText]);
-
-  const dropdownStyle = useMemo(() => ({
-    padding: 0,
-    maxHeight: dropdownHeight,
-    minWidth: dropdownWidth || 'auto',
-    overflowY: 'auto' as const,
-    overflowX: 'hidden' as const,
-    ...restProps.dropdownStyle,
-  }), [dropdownHeight, dropdownWidth, restProps.dropdownStyle]);
+  ), [dropdownHeight, rowSelection, columns, currentDataSource, loading, currentPage, currentPageSize, totalCount, showPagination, showHeader, valueKey, selectedRowKeys, searchText]);
 
   return (
     <Select
@@ -353,6 +381,9 @@ const TableSelect = <T extends object>({
       onDeselect={(deselectedValue) => {
         if (mode === 'multiple' && Array.isArray(value)) {
           const newValue = value.filter(v => String(v) !== String(deselectedValue));
+          const newSelectedKeys = selectedRowKeys.filter(key => key !== String(deselectedValue));
+          setSelectedRowKeys(newSelectedKeys);
+          updateSelectedRecords(newSelectedKeys);
           onChange?.(newValue);
         }
       }}

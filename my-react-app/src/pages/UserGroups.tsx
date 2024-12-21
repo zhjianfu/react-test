@@ -157,38 +157,45 @@ const UserGroups: React.FC = () => {
     form.setFieldsValue({
       name: record.name,
       description: record.description,
-      members: record.members.map(id => Number(id)),  // 确保 ID 类型一致
+      members: record.members,  
     });
   };
 
   // 处理表单提交
-  const handleSubmit = async (values: any) => {
-    const submitData = {
-      ...values,
-      members: values.members?.map(String) || [],
-      id: editingGroup?.id,
-      createdAt: editingGroup?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  const handleSubmit = async () => {
+    try {
+      const values = await form.validateFields();
+      console.log('Submit values:', values);
+      
+      const submitData = {
+        ...values,
+        members: values.members || [],  
+        id: editingGroup?.id,
+        createdAt: editingGroup?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
 
-    if (editingGroup) {
-      // 更新
-      const updatedGroups = groups.map(group =>
-        group.id === editingGroup.id ? submitData : group
-      );
-      setGroups(updatedGroups);
-    } else {
-      // 新增
-      submitData.id = groups.length + 1;
-      setGroups([...groups, submitData]);
+      if (editingGroup) {
+        // 更新
+        const updatedGroups = groups.map(group =>
+          group.id === editingGroup.id ? submitData : group
+        );
+        setGroups(updatedGroups);
+      } else {
+        // 新增
+        submitData.id = groups.length + 1;
+        setGroups([...groups, submitData]);
+      }
+
+      console.log(editingGroup ? '更新成功' : '创建成功');
+      setIsModalVisible(false);
+      form.resetFields();
+      setEditingGroup(null);
+      // 刷新列表
+      fetchGroups(currentPage, pageSize);
+    } catch (error) {
+      console.error('Form validation failed:', error);
     }
-
-    console.log(editingGroup ? '更新成功' : '创建成功');
-    setIsModalVisible(false);
-    form.resetFields();
-    setEditingGroup(null);
-    // 刷新列表
-    fetchGroups(currentPage, pageSize);
   };
 
   // 模拟用户搜索接口
@@ -377,38 +384,39 @@ const UserGroups: React.FC = () => {
             label="成员"
             name="members"
           >
-            <TableSelect
+            <TableSelect<User>
               mode="multiple"
               placeholder="请选择成员"
               style={{ width: '100%' }}
               request={fetchUsers}
+              rowKey="id"
+              valueKey="id"
+              labelKey="name"
+              dropdownWidth={600}
+              dropdownHeight={400}
+              showHeader={true}
+              showPagination={true}
+              searchPlaceholder="请输入姓名搜索"
               columns={[
                 {
                   title: '姓名',
                   dataIndex: 'name',
                   key: 'name',
+                  width: 120,
                 },
                 {
                   title: '邮箱',
                   dataIndex: 'email',
                   key: 'email',
+                  width: 200,
                 },
                 {
                   title: '部门',
                   dataIndex: 'department',
                   key: 'department',
+                  width: 120,
                 },
               ]}
-              rowKey="id"
-              valueKey="id"
-              labelKey="name"
-              searchKey="name"
-              searchPlaceholder="请输入姓名搜索"
-              showHeader={true}
-              showPagination={true}
-              dropdownWidth={500}
-              labelProps={['name', 'email', 'department']}
-              ellipsis={true}
             />
           </Form.Item>
         </Form>

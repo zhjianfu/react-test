@@ -10,6 +10,7 @@ TableSelect 是一个基于 antd 的高级选择器组件，它结合了 Select 
 - 支持分页
 - 自定义标签展示
 - 响应式标签收缩
+- 支持获取选中记录
 
 ## 安装
 
@@ -31,6 +32,7 @@ import { TableSelect } from '@/components';
   labelKey="name"
   columns={columns}
   dataSource={dataSource}
+  onSelectedRecordsChange={(selectedRecords) => console.log(selectedRecords)}
 />
 
 // 远程数据加载
@@ -46,6 +48,7 @@ import { TableSelect } from '@/components';
       total: res.total
     };
   }}
+  onSelectedRecordsChange={(selectedRecords) => console.log(selectedRecords)}
 />
 ```
 
@@ -72,6 +75,7 @@ import { TableSelect } from '@/components';
 | pageSize | number | 25 | 否 | 每页显示条数 |
 | dropdownWidth | number | - | 否 | 下拉框宽度 |
 | dropdownHeight | number | - | 否 | 下拉框高度 |
+| onSelectedRecordsChange | (selectedRecords: T[]) => void | - | 否 | 选中记录改变时的回调 |
 
 ### 事件
 
@@ -79,6 +83,7 @@ import { TableSelect } from '@/components';
 |--------|------|------|
 | onChange | (value: any \| any[]) => void | 选择值改变时的回调 |
 | onDropdownVisibleChange | (open: boolean) => void | 下拉框显示状态改变时的回调 |
+| onSelectedRecordsChange | (selectedRecords: T[]) => void | 选中记录改变时的回调 |
 
 ## 示例
 
@@ -93,6 +98,7 @@ import { TableSelect } from '@/components';
     { title: '年龄', dataIndex: 'age' },
   ]}
   dataSource={users}
+  onSelectedRecordsChange={(selectedRecords) => console.log(selectedRecords)}
 />
 ```
 
@@ -114,6 +120,7 @@ import { TableSelect } from '@/components';
     { title: '姓名', dataIndex: 'name' },
     { title: '邮箱', dataIndex: 'email' },
   ]}
+  onSelectedRecordsChange={(selectedRecords) => console.log(selectedRecords)}
 />
 ```
 
@@ -129,6 +136,7 @@ import { TableSelect } from '@/components';
     { title: '邮箱', dataIndex: 'email' },
     { title: '部门', dataIndex: 'department' },
   ]}
+  onSelectedRecordsChange={(selectedRecords) => console.log(selectedRecords)}
 />
 ```
 
@@ -143,3 +151,5 @@ import { TableSelect } from '@/components';
 4. 如果同时使用了 `dataSource` 和 `request`，优先使用 `request` 加载数据。
 
 5. `searchKey` 用于指定搜索时的参数名，如果不指定则默认使用 `keyword`。
+
+6. `onSelectedRecordsChange` 回调函数会返回选中的记录数组，可以用于进一步的处理。
